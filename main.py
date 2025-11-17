@@ -2,7 +2,6 @@ import plotext as plt
 import math
 import numpy as np
 import random
-from pynput import keyboard
 
 camera_x, camera_y, camera_z = 0, 0, 0
 
@@ -76,7 +75,17 @@ def square(start_x=-40, start_y=-40, start_z=0, side_length=50, d='No', color='g
         line((start_x, start_y + side_length, start_z), (start_x + side_length, start_y + side_length, start_z), d='No', color=color)
         line((start_x, start_y, start_z), (start_x + side_length, start_y, start_z), d='No', color=color)
 
-def cube(start_x=-30, start_y=-30, start_z=0, side_length=60, color='green', solid=False):
+def point(start_x=0, start_y=0, start_z=0, color='green'):
+    if (start_z - camera_z) <= 0:
+        multiplier = 0.009 + math.exp(-0.03 * abs(start_z - camera_z))
+        print(multiplier)
+        start_x = int(start_x * multiplier)
+        print(start_x)
+        start_y = int(start_y * multiplier)
+        print(start_y)
+        trace([start_x], [start_y], [start_z], 'No', color)
+
+def cube(start_x=-30, start_y=-30, start_z=0, side_length=60, color='cyan', solid=False):
     # Draw front and back squares (back square offset in x/y/z by side_length - 30)
     square(start_x, start_y, start_z, side_length, d='No', color=color, solid=solid)
     back_offset = side_length - 30
@@ -91,11 +100,13 @@ def cube(start_x=-30, start_y=-30, start_z=0, side_length=60, color='green', sol
         line((start_x, start_y + side_length, start_z), (start_x + side_length - 30, start_y + side_length + side_length - 30, start_z + back_offset), 'Yes', color=color)
         line((start_x + side_length, start_y + side_length, start_z), (start_x + side_length + side_length - 30, start_y + side_length + side_length - 30, start_z + back_offset), 'Yes', color=color)
 
-def circle(center_x=0, center_y=0, center_z=0, radius=30, color='cyan'):
+def circle(center_x=0, center_y=0, center_z=0, radius=30, color='green'):
     if (center_z - camera_z) > 0:
         radius = 0
     else:
-        radius = int(radius * (0.009 + (3 - 0.009) * math.exp(-0.03 * abs(center_z - camera_z))))
+        multiplier = 0.009 + (3 - 0.009) * math.exp(-0.03 * abs(center_z - camera_z))
+        center_x = int(center_x * multiplier)
+        radius = int(radius * multiplier)
     num_points = 400 # More points improve granularity for segments
     # --- Generate the angles (from 0 to 2*PI) ---
     angles = np.linspace(0, 2 * math.pi, num_points + 1)
@@ -120,9 +131,47 @@ def visual():
     plt.frame(False)
     plt.show()
 
+def keyboard_mac():
+    from pynput import keyboard
+    def on_press(key, injected):
+        global camera_x, camera_y, camera_z
+        try:
+            if key.char == 's':
+                camera_z += 5
+                render()
+            elif key.char == 'w':
+                camera_z -= 5
+                render()
+        except AttributeError:
+            return None
+        
+
+    # Collect events until released
+    with keyboard.Listener(
+            on_press=on_press) as listener:
+        listener.join()
+    listener.start()
+
+def keyboard():
+    def on_press(key):
+        global camera_x, camera_y, camera_z
+        try:
+            if key == 's':
+                camera_z += 5
+                render()
+            elif key == 'w':
+                camera_z -= 5
+                render()
+        except AttributeError:
+            return None
+        
+    while True:
+        key = input("> ")
+        on_press(key)
+
 def shapes():
-    cube()
-    plt.scatter([sunx], [suny], marker = 'Light', color = 'red')
+    point(sunx, suny, sunz, color='red')
+    circle()
 
 def render():
     plt.clf()
@@ -134,26 +183,8 @@ def render():
 # Show the plot
 
 # circle(-50, 50, 20)
-sunx, suny, sunz = 30, 30, 40
+sunx, suny, sunz = 50, 50, 40
 camera_x, camera_y, camera_z = 0, 0, 0
 
 render()
-
-def on_press(key, injected):
-    global camera_x, camera_y, camera_z
-    try:
-        if key.char == 's':
-            camera_z += 5
-            render()
-        elif key.char == 'w':
-            camera_z -= 5
-            render()
-    except AttributeError:
-        return None
-        
-
-# Collect events until released
-with keyboard.Listener(
-        on_press=on_press) as listener:
-    listener.join()
-listener.start()
+keyboard()
